@@ -1,7 +1,0 @@
-## zh-CN
-
-使用 Tree 组件作为自定义渲染列表。
-
-## en-US
-
-Customize the render list with a Tree component.
