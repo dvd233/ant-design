@@ -1,0 +1,66 @@
+name: Transfer native source inventory
+
+on:
+  push:
+    branches: [work/transfer-zero-native-inventory-20261007]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transfer-inventory-${{ github.repository_id }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    if: github.repository == 'dvd233/ant-design' && github.repository_id == '1352151349'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Enforce approved repository and isolated branch
+        env:
+          OWNER_ID: ${{ github.repository_owner_id }}
+        run: |
+          test "$GITHUB_REPOSITORY" = 'dvd233/ant-design'
+          test "$GITHUB_REPOSITORY_ID" = '1352151349'
+          test "$OWNER_ID" = '111864431'
+          test "$GITHUB_REF" = 'refs/heads/work/transfer-zero-native-inventory-20261007'
+      - name: Read the isolated four-file harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: harness
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Reject inherited upstream workflows or extra payload files
+        run: |
+          python3 -I - <<'PY'
+          import subprocess
+          expected = {'.github/workflows/transfer-native-inventory.yml', 'README.md', 'inventory.py', 'inventory-files.json'}
+          actual = set(subprocess.check_output(['git', '-C', 'harness', 'ls-tree', '-r', '--name-only', 'HEAD']).decode().splitlines())
+          assert actual == expected, sorted(actual ^ expected)
+          PY
+      - name: Checkout only the reviewed public source revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ant-design/ant-design
+          ref: 2d2d49cb6378b6b41c40cd331f63139017ced6e0
+          path: source
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+          lfs: false
+      - name: Export byte-verified text evidence without executing upstream code
+        run: python3 -I harness/inventory.py --source source --expected harness/inventory-files.json --out inventory-artifact
+      - name: Upload bounded inventory only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: transfer-native-inventory-${{ github.run_id }}
+          path: inventory-artifact/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 3
+          compression-level: 9
